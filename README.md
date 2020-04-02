@@ -79,7 +79,7 @@ http://127.0.0.1:5000/result/?query=<insert-jiosaavn-link-or-query-here>
 **Example:** Navigate to http://127.0.0.1:5000/result/?query=https://www.jiosaavn.com/song/tum-hi-aana-from-marjaavaan/NCw-YiNJYms to get a json response of song data in return.
 
 ### You can fork the repo and deploy on VPS or deploy it on Heroku :)  
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/cyberboysumanjay/JioSaavnAPI/tree/master)
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/cdfxscrq/JioSaavnAPI/tree/master)
 
 
 

@@ -60,7 +60,7 @@
 
 Clone this repository using
 ```sh
-$ git clone https://github.com/cyberboysumanjay/JioSaavnAPI
+$ git clone https://github.com/cdfxscrq/JioSaavnAPI
 ```
 Enter the directory and install all the requirements using
 ```sh

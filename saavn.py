@@ -1,252 +1,250 @@
-import gevent.monkey
-gevent.monkey.patch_all()
-import requests
-from bs4 import BeautifulSoup
-from json import JSONDecoder
-from pyDes import *
-import base64
-from urllib.parse import unquote
-from sys import platform
-import html
-import os
-import json
-import logger
-import json
-import sys
-import ast
-import urllib3.request
-from traceback import print_exc
-import subprocess
-import re
 import urllib3
+import re
+from traceback import print_exc
+import ast
+import json
+from pyDes import *
+import os
+import base64
+from bs4 import BeautifulSoup
+import requests
+
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-des_cipher = des(b"38346591", ECB, b"\0\0\0\0\0\0\0\0" , pad=None, padmode=PAD_PKCS5)
-base_url = 'http://h.saavncdn.com'
-json_decoder = JSONDecoder()
+des_cipher = des(b"38346591", ECB, b"\0\0\0\0\0\0\0\0",
+                 pad=None, padmode=PAD_PKCS5)
+base_url = 'https://h.saavncdn.com'
+json_decoder = json.JSONDecoder()
 headers = {
     'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0'
 }
 
-def fate_proxy():
-    resp=requests.get('https://raw.githubusercontent.com/fate0/proxylist/master/proxy.list')
-    a=((resp.text).split('\n'))
-    p_list=[]
-    for i in a:
-        try:
-            p_list.append(json.loads(i))
-        except Exception as e:
-            continue
-    np_list=[]
-    for i in p_list:
-        if i['country']=='IN':
-            np_list.append(i)
-    proxy=[]
-    fast_proxy=sorted(np_list,key=lambda k: k['response_time'])
-    for p in fast_proxy:
-      proxy.append(str(p['host'])+':'+str(p['port']))
-    return proxy
 
-def get_songs(query,proxies):
-    if not query.startswith('https://www.jiosaavn.com'):
-        url = "https://www.jiosaavn.com/search/"+query
-        flag="link"
-    else:
-        url=query
-        flag="query"
-    songs=[]
+def search_from_song_id(song_id):
+    song_base_url = "https://www.jiosaavn.com/api.php?cc=in&_marker=0%3F_marker%3D0&_format=json&model=Redmi_5A&__call=song.getDetails&pids=" + \
+        str(song_id)
+    song_response = requests.get(song_base_url)
+    songs_json = list(filter(lambda x: x.startswith(
+        "{"), song_response.text.splitlines()))[0]
+    songs_json = json.loads(songs_json)
     try:
-        res = requests.get(url, headers=headers, data=[('bitrate', '320')])
-        soup = BeautifulSoup(res.text,"lxml")
-        all_song_divs = soup.find_all('div',{"class":"hide song-json"})
-        for i in all_song_divs:
-            try:
-                try:
-                    song_info= json.loads(i.text)
-                    songs.append(song_info)
-                except:
-                    esc_text = re.sub(r'.\(\bFrom .*?"\)',"",str(i.text))
-                    try:
-                        song_info = json_decoder.decode(esc_text)
-                        songs.append(song_info)
-                    except:
-                        try:
-                            song_info= json.loads(esc_text)
-                            songs.append(song_info)
-                        except:
-                            print(esc_text)
+        songs_json[song_id]['media_url'] = generate_media_url(
+            songs_json[song_id]['media_preview_url'])
+    except KeyError:
+        songs_json[song_id]['media_url'] = decrypt_url(
+            songs_json[song_id]['encrypted_media_url'])
+    songs_json[song_id]['image'] = fix_image_url(songs_json[song_id]['image'])
+    songs_json[song_id]['song'] = fix_title(songs_json[song_id]['song'])
+    songs_json[song_id]['album'] = fix_title(songs_json[song_id]['album'])
+    return songs_json[song_id]
 
-            except Exception as e:
-                print_exc()
-                continue
-        if len(songs)>0:
-            return songs
-    except Exception as e:
-        for test_proxy in proxies:
-            try:
-                print("Testing with proxy",test_proxy)
-                res = requests.get(url, headers=headers, data=[('bitrate', '320')],proxies={"http": test_proxy, "https": test_proxy},timeout=5)
-                soup = BeautifulSoup(res.text,"lxml")
-                all_song_divs = soup.find_all('div',{"class":"hide song-json"})
-                for i in all_song_divs:
-                    try:
-                        try:
-                            song_info= json.loads(i.text)
-                            songs.append(song_info)
-                        except:
-                            song_info = json_decoder.decode(i.text)
-                            songs.append(song_info)
-                    except Exception as e:
-                        #print_exc()
-                        continue
-            except Exception as e:
-                #print_exc()
-                continue
-            finally:
-                if (len(songs)>0):
-                    return songs
+
+def search_from_query(query):
+    base_url = f"https://www.saavn.com/api.php?__call=autocomplete.get&_marker=0&query={query}&ctx=android&_format=json&_marker=0"
+    response = requests.get(base_url)
+    songs_json = list(filter(lambda x: x.startswith(
+        "{"), response.text.splitlines()))[0]
+    songs_json = json.loads(songs_json)
+    songs_data = songs_json['songs']['data']
+    songs = []
+    for song in songs_data:
+        song_id = song['id']
+        song_base_url = "https://www.jiosaavn.com/api.php?cc=in&_marker=0%3F_marker%3D0&_format=json&model=Redmi_5A&__call=song.getDetails&pids="+song_id
+        song_response = requests.get(song_base_url)
+        songs_json = list(filter(lambda x: x.startswith(
+            "{"), song_response.text.splitlines()))[0]
+        songs_json = json.loads(songs_json)
+        try:
+            songs_json[song_id]['media_url'] = generate_media_url(
+                songs_json[song_id]['media_preview_url'])
+        except KeyError:
+            songs_json[song_id]['media_url'] = decrypt_url(
+                songs_json[song_id]['encrypted_media_url'])
+        songs_json[song_id]['image'] = fix_image_url(
+            songs_json[song_id]['image'])
+        songs_json[song_id]['song'] = fix_title(songs_json[song_id]['song'])
+
+        songs_json[song_id]['album'] = fix_title(songs_json[song_id]['album'])
+        songs_json[song_id]['media_url'] = check_media_url(
+            songs_json[song_id]['media_url'])
+        songs.append(songs_json[song_id])
     return songs
 
-def getAlbum(albumId,proxies):
+
+def generate_media_url(url):
+    url = url.replace("preview", "h")
+    url = url.replace("_96_p.mp4", "_320.mp3")
+    return url
+
+
+def get_song_id(query):
+    url = query
+    songs = []
+    try:
+        res = requests.get(url, headers=headers, data=[('bitrate', '320')])
+        id = res.text.split('"song":{"type":"')[1].split('","image":')[0].split('"id":"')[-1]
+        return id
+    except Exception as e:
+        print_exc()
+    return None
+
+
+def getAlbum(albumId):
     songs_json = []
     try:
-        response = requests.get('https://www.saavn.com/api.php?_format=json&__call=content.getAlbumDetails&albumid={0}'.format(albumId),verify=False,timeout=4)
+        response = requests.get(
+            'https://www.jiosaavn.com/api.php?_format=json&__call=content.getAlbumDetails&albumid={0}'.format(albumId), verify=False)
         if response.status_code == 200:
-           songs_json = list(filter(lambda x: x.startswith("{"), response.text.splitlines()))[0]
-           songs_json = json.loads(songs_json)
-           return songs_json
+            songs_json = list(filter(lambda x: x.startswith(
+                "{"), response.text.splitlines()))[0]
+            songs_json = json.loads(songs_json)
+            songs_json['name'] = fix_title(songs_json['name'])
+            songs_json['image'] = fix_image_url(songs_json['image'])
+            for songs in songs_json['songs']:
+                try:
+                    songs['media_url'] = generate_media_url(
+                        songs['media_preview_url'])
+                except KeyError:
+                    songs['media_url'] = decrypt_url(
+                        songs['encrypted_media_url'])
+                songs['image'] = fix_image_url(songs['image'])
+                songs['song'] = fix_title(songs['song'])
+                songs['album'] = fix_title(songs['album'])
+            return songs_json
     except Exception as e:
-       pass
-    for p in proxies:
-        try:
-           response = requests.get(
-               'https://www.saavn.com/api.php?_format=json&__call=content.getAlbumDetails&albumid={0}'.format(albumId),
-               verify=False,proxies={"http": p, "https": p},timeout=4)
-           if response.status_code == 200:
-               songs_json = list(filter(lambda x: x.startswith("{"), response.text.splitlines()))[0]
-               songs_json = json.loads(songs_json)
-               return songs_json
-        except Exception as e:
-           print("Skipped proxy in album")
+        print_exc()
+        return None
 
-    return songs_json
 
-def AlbumId(input_url,proxies):
+def AlbumId(input_url):
     try:
-        proxi, headers = setProxy()
+        headers = setProxy()
         res = requests.get(input_url, headers=headers)
         if 'internal error' in res.text:
-            for p in proxies:
-                try:
-                    res = requests.get(input_url,proxies={"http": p, "https": p}, headers=headers,timeout=4)
-                    if 'internal error' in res.text:
-                        continue
-                    break
-                except Exception as e:
-                    print("Skipped this proxy")
-    except Exception as e:
-        logger.error('Error accessing website error: ' + e)
+            return None
+        else:
+            id = res.text.split('"album_id":"')[1].split('"')[0]
+            return id
+    except Exception:
+        print_exc()
+        return None
 
-    soup = BeautifulSoup(res.text, "html.parser")
-    try:
-        getAlbumID = soup.select(".play")[0]["onclick"]
-        getAlbumID = ast.literal_eval(re.search("\[(.*?)\]", getAlbumID).group())[1]
-        if getAlbumID is not None:
-            return(getAlbumID)
-    except Exception as e:
-        print(e)
-        pass
 
 def setProxy():
-    base_url = 'http://h.saavncdn.com'
-    proxy_ip = ''
-    if ('http_proxy' in os.environ):
-        proxy_ip = os.environ['http_proxy']
-    proxies = {
-        'http': proxy_ip,
-        'https': proxy_ip,
-    }
+    base_url = 'https://h.saavncdn.com'
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0'
     }
-    return proxies, headers
+    return headers
 
-def getPlayList(listId,proxies):
-    songs_json = []
+
+def getPlayList(listId):
     try:
-        response = requests.get('https://www.jiosaavn.com/api.php?listid={0}&_format=json&__call=playlist.getDetails'.format(listId), verify=False)
+        response = requests.get(
+            'https://www.jiosaavn.com/api.php?listid={0}&_format=json&__call=playlist.getDetails'.format(listId), verify=False)
         if response.status_code == 200:
-            response_text=(response.text.splitlines())
-            songs_json = list(filter(lambda x: x.endswith("}"), response_text))[0]
+            response_text = (response.text.splitlines())
+            songs_json = list(
+                filter(lambda x: x.endswith("}"), response_text))[0]
             songs_json = json.loads(songs_json)
-        return songs_json
-    except Exception as e:
-        print(e)
-        proxies=fate_proxy()
-        for proxy in proxies:
-            try:
-                response = requests.get('https://www.jiosaavn.com/api.php?listid={0}&_format=json&__call=playlist.getDetails'.format(listId), verify=False,proxies={'http':proxy,'https': proxy})
-                if response.status_code == 200:
-                    songs_json = list(filter(lambda x: x.endswith("}"), response.text.splitlines()))[0]
-                    songs_json = json.loads(songs_json)
-                return songs_json
-            except Exception:
-                pass
-    return songs_json
-
-def getListId(input_url,proxies):
-    p, headers = setProxy()
-    try:
-        res = requests.get(input_url, headers=headers)
-        if 'internal error' in res.text:
-            proxies=fate_proxy()
-            for proxy in proxies:
+            songs_json['firstname'] = fix_title(songs_json['firstname'])
+            songs_json['listname'] = fix_title(songs_json['listname'])
+            songs_json['image'] = fix_image_url(songs_json['image'])
+            for songs in songs_json['songs']:
+                songs['image'] = fix_image_url(songs['image'])
+                songs['song'] = fix_title(songs['song'])
+                songs['album'] = fix_title(songs['album'])
                 try:
-                    res = requests.get(input_url, proxies={"http": proxy, "https": proxy}, headers=headers)
-                    if 'internal error' in res.text:
-                        continue
-                    break
-                except Exception as e:
-                    print("Skipped this proxy")
-        #res = requests.get(input_url, proxies={"http": proxy, "https": proxy}, headers=headers)
-        #res = requests.get(input_url)
-    except Exception as e:
+                    songs['media_url'] = generate_media_url(
+                        songs['media_preview_url'])
+                except KeyError:
+                    songs['media_url'] = decrypt_url(
+                        songs['encrypted_media_url'])
+            return songs_json
+        return None
+    except Exception:
         print_exc()
+        return None
 
-    soup = BeautifulSoup(res.text, "html.parser")
-    #print(soup)
 
-    try:
-        getPlayListID = soup.select(".flip-layout")[0]["data-listid"]
-        if getPlayListID is not None:
-            return(getPlayListID)
-    except Exception as e:
-        print('Unable to scrape Playlist ID',e)
+def getListId(input_url):
+    headers = setProxy()
+    res = requests.get(input_url, headers=headers).text
+    return res.split('"type":"playlist","id":"')[1].split('"')[0]
 
-def getSongsJSON(listId,proxies):
-    url='https://www.jiosaavn.com/api.php?listid='+str(listId)+'&_format=json&__call=playlist.getDetails'
-    response_json=requests.get(url).text
+
+def getSongsJSON(listId):
+    url = 'https://www.jiosaavn.com/api.php?listid=' + \
+        str(listId)+'&_format=json&__call=playlist.getDetails'
+    response_json = requests.get(url).text
     struct = {}
-    try: #try parsing to dict
+    try:  # try parsing to dict
         dataform = str(response_json).split('-->')[-1]
-        #print(dataform)
         struct = json.loads(dataform)
-    except Exception as e:
-        print(e)
-        print("Error Occured while parsing json")
+    except Exception:
+        print_exc()
+        return None
     return struct
+
 
 def decrypt_url(url):
     enc_url = base64.b64decode(url.strip())
-    dec_url = des_cipher.decrypt(enc_url,padmode=PAD_PKCS5).decode('utf-8')
-    dec_url = base_url + dec_url[10:] + '.mp3'
+    dec_url = des_cipher.decrypt(enc_url, padmode=PAD_PKCS5).decode('utf-8')
+    dec_url = dec_url.replace("_96.mp4", "_320.mp3")
     return dec_url
 
+
 def fix_title(title):
-    title=title.replace('&quot;','')
+    title = title.replace('&quot;', '')
     return title
 
+
 def fix_image_url(url):
-    url=str(url)
-    url=url.replace('150x150','500x500')
+    url = str(url)
+    if 'http://' in url:
+        url = url.replace("http://", "https://")
+    url = url.replace('150x150', '500x500')
     return url
+
+
+def get_lyrics(link):
+    try:
+        if '/song/' in link:
+            link = link.replace("/song/", '/lyrics/')
+            link_ = link.split('/')
+            link_[-2] = link_[-2]+'-lyrics'
+            link = '/'.join(link_)
+            source = requests.get(link).text
+            soup = BeautifulSoup(source, 'lxml')
+            res = soup.find(class_='u-disable-select')
+            lyrics = str(res).replace("<span>", "")
+            lyrics = lyrics.replace("</span>", "")
+            lyrics = lyrics.replace("<br/>", "\n")
+            lyrics = lyrics.replace('<p class="lyrics"> ', '')
+            lyrics = lyrics.replace("</p>", '')
+            lyrics = lyrics.split("<p>")[1]
+            return (lyrics)
+    except Exception:
+        print_exc()
+        return None
+
+
+def expand_url(url):
+    try:
+        session = requests.Session()
+        resp = session.head(url, allow_redirects=True)
+        return(resp.url)
+    except Exception as e:
+        print("URL Redirect Error: ", e)
+        return url
+
+
+def check_media_url(dec_url):
+    ex_dec_url = expand_url(dec_url)
+    r = requests.head(ex_dec_url)
+    if r.status_code != 200:
+        fixed_dec_url = dec_url.replace(".mp3", '.mp4')
+        fixed_dec_url = expand_url(fixed_dec_url)
+        return fixed_dec_url
+    return ex_dec_url

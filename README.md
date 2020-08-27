@@ -1,5 +1,11 @@
 ## JioSaavn API [Unofficial]
 
+### Show some :heart: and :star: the repo to support the project
+
+[![GitHub stars](https://img.shields.io/github/stars/cyberboysumanjay/jiosaavnapi.svg?style=social&label=Star)](https://github.com/cyberboysumanjay/JioSaavnAPI) ![GitHub followers](https://img.shields.io/github/followers/cyberboysumanjay.svg?style=social&label=Follow)
+[![Telegram Channel](https://img.shields.io/badge/Telegram-Channel-orange)](https://t.me/sjprojects)
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![Open Source Love svg1](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://github.com/ellerbrock/open-source-badges/)
+
 #### JioSaavn API written in Python using Flask  
 
  ---
@@ -19,7 +25,7 @@
 - **Download Link**
 - **Release Year**
 - **Album Art Link (Max Resolution)**
-- **Song Title**
+- **Lyrics**
 - .... and much more!
 
 ```json
@@ -73,15 +79,22 @@ $ python3 app.py
 Navigate to 127.0.0.1:5000 to see the Homepage
 
 #### Usage:
-```sh
-http://127.0.0.1:5000/result/?query=<insert-jiosaavn-link-or-query-here>
+Fetching lyrics is optional and is triggered only when it is passed as an argument in the GET Request. (**&lyrics=true**)
+**If you enable lyrics search, it will take more time to fetch results**
+
+```shSong Title
+http://127.0.0.1:5000/result/?query=<insert-jiosaavn-link-or-query-here>&lyrics=true
 ```
 **Example:** Navigate to http://127.0.0.1:5000/result/?query=https://www.jiosaavn.com/song/tum-hi-aana-from-marjaavaan/NCw-YiNJYms to get a json response of song data in return.
 
 ### You can fork the repo and deploy on VPS or deploy it on Heroku :)  
 [![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/cdfxscrq/JioSaavnAPI/tree/master)
 
-
+**Note:** Heroku gives US/Europe servers which won't be able to fetch all songs flawlessly. Use any Indian VPS for fetching accurate results.
+## Made using this API :heart:
+##### [Musify](https://kutt.it/songdlapp) - Android App
+##### [@songdl_bot](https://t.me/songdl_bot) - Song Downloader Bot on Telegram
+##### [Site[Beta]](https://jiosaavn.netlify.app/) - Website made by [Praveen Bhadoo](https://github.com/ParveenBhadooOfficial)
 
 #### Star the Repo in case you liked it :)
 
